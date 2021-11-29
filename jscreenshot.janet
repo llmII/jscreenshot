@@ -90,8 +90,8 @@
          (reduce2 and2))))
 
 # Begin program --------------------------------------------------------------
-(defn wofi [prompt]
-  [(env :wofi) "-dImi" "-L9" "-w2" "-W600" "-H600" "-p" prompt])
+(defn wofi [msg]
+  [(env :wofi) "-dImi" "-L9" "-w2" "-W600" "-H600" "-p" msg])
 
 # check for dependencies
 (when
@@ -106,7 +106,7 @@
 (put env :have-tesseract
      (check-programs-exist "Optional dependency" "tesseract"))
 
-(defn prompt [msg options]
+(defn select-choice [msg options]
   (try
     (-> options
         keys
@@ -146,7 +146,7 @@
 # swaymsg -t get_tree |
 #   jq -r '.. | select((.pid? and .visible?) or .type == "output") | .rect | "\(.x),\(.y) \(.width)x\(.height)"'
 (defn select-rect [recording-type]
-  (match (prompt (string/format "Select area to %s" recording-type)
+  (match (select-choice (string/format "Select area to %s" recording-type)
            {"Window/Screen" [:selection false]
             "Area"          [:selection true]
             "All screens"   :all})
@@ -197,14 +197,14 @@
     (when ocr
       (put options (string/format "Run %s through ocr?" (string file-type))
            :ocr))
-    (match (prompt destination-prompt options)
+    (match (select-choice destination-prompt options)
       :file
       [(select-file file-type)]
       :clipboard
       ["-" [["wl-copy"]]]
       :ocr
       ["-" [["tesseract" "-" "-" "--tessdata-dir" (env :tessdata)]
-            ["wl-copy" "-f"]]]
+            ["wl-copy"]]]
       _ [])))
 
 (defn screenshot []
@@ -234,7 +234,7 @@
     ([_]
       (buffer/push user-prompt " or Start Recording")
       (put options "Start Recording" :start-recording)))
-  (match (prompt user-prompt options)
+  (match (select-choice user-prompt options)
     :screenshot (screenshot)
     :start-recording
     :end-recording))
