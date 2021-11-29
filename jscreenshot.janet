@@ -108,10 +108,8 @@
 
 (defn select-choice [msg options]
   (try
-    (-> options
-        keys
-        (string/join "\n")
-        (pipe [(wofi (string msg))])
+    (-> (pipe (string/join (keys options) "\n")
+              [(wofi (string msg))])
         (string/trim "\n")
         options)
     ([err]
