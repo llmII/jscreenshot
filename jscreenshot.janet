@@ -66,7 +66,6 @@
       _ ((state :tail) :out))))
 
 # dependency checking --------------------------------------------------------
-
 # we need arity 2 or/and functions
 (defn and2 [a b]
   (and a b))
@@ -92,7 +91,7 @@
 
 # Begin program --------------------------------------------------------------
 (defn wofi [prompt]
-  ["wofi" "-dImi" "-L9" "-w2" "-W600" "-H600" "-p" prompt])
+  [(env :wofi) "-dImi" "-L9" "-w2" "-W600" "-H600" "-p" prompt])
 
 # check for dependencies
 (when
@@ -109,12 +108,12 @@
 
 (defn prompt [msg options]
   (try
-    (options
-      (string/trim
-        (pipe
-          (string/join (keys options) "\n")
-          [(wofi (string msg))])
-        "\n"))
+    (-> options
+        keys
+        (string/join "\n")
+        (pipe [(wofi (string msg))])
+        (string/trim "\n")
+        options)
     ([err]
       (eprintf "Option selection failure.\n%s\n" err)
       (os/exit 2))))
@@ -239,3 +238,4 @@
     :screenshot (screenshot)
     :start-recording
     :end-recording))
+
