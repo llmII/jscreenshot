@@ -219,11 +219,11 @@
 
 (defn recording []
   (let [wf-recorder @["wf-recorder"]
+        audio (select-choice "Audio: " {"Enable Audio" true
+                                        "Disable Audio" false})
         [rect _] (or (select-rect "recording") [])
         [destination _] (select-destination :file :recording)]
-    (when (prompt "Audio: " {"Enable Audio" true
-                             "Disable Audio" false} )
-      (array/push wf-recorder "-a"))
+    (when audio (array/push wf-recorder "-a"))
     (when rect (array/concat wf-recorder "-g" rect))
     (array/concat wf-recorder "-f" destination)
     (pipe nil [wf-recorder])))
