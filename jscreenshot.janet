@@ -219,6 +219,7 @@
     (default post-processing [])
     (pipe nil [grim ;post-processing])))
 
+(defn recording [])
 
 # determine are we allowed to take or end recording
 (let [options     @{"Take Screenshot" :screenshot}
@@ -235,7 +236,6 @@
       (buffer/push user-prompt " or Start Recording")
       (put options "Start Recording" :start-recording)))
   (match (select-choice user-prompt options)
-    :screenshot (screenshot)
-    :start-recording
-    :end-recording))
-
+    :screenshot      (screenshot)
+    :start-recording (recording)
+    :end-recording   (pipe nil [["pkill" "-2" "wf-recorder"]])))
