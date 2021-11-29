@@ -108,10 +108,8 @@
 
 (defn select-choice [msg options]
   (try
-    (-> options
-        keys
-        (string/join "\n")
-        (pipe [(wofi (string msg))])
+    (-> (pipe (string/join (keys options) "\n")
+              [(wofi (string msg))])
         (string/trim "\n")
         options)
     ([err]
@@ -177,8 +175,8 @@
                                :recording "mp4")))
             [(wofi
                (string/format "Select a file name for you %s:"
-                              (string file-type)))]))
-        "\n"))
+                              (string file-type)))])
+          "\n")))
     ([err]
       (eprintf "File name selection failure.\n%s\n" err)
       (os/exit 3))))
@@ -219,7 +217,16 @@
     (default post-processing [])
     (pipe nil [grim ;post-processing])))
 
-(defn recording [])
+(defn recording []
+  (let [wf-recorder @["wf-recorder"]
+        [rect _] (or (select-rect "recording") [])
+        [destination _] (select-destination :file :recording)]
+    (when (prompt "Audio: " {"Enable Audio" true
+                             "Disable Audio" false} )
+      (array/push wf-recorder "-a"))
+    (when rect (array/concat wf-recorder "-g" rect))
+    (array/concat wf-recorder "-f" destination)
+    (pipe nil [wf-recorder])))
 
 # determine are we allowed to take or end recording
 (let [options     @{"Take Screenshot" :screenshot}
