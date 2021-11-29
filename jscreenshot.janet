@@ -12,20 +12,18 @@
 #   This also needs a wofi like utility that it can launch to provide a
 #   selection interface.
 
-(import json)
 (use sys)
-# collect environment variables
-(def env
-  @{:path     (string/split ":" (os/getenv "PATH"))
-    :pictures (string (os/getenv "XDG_PICTURES_DIR" "Pictures")
-                      "/screenshots")
-    :videos   (string (os/getenv "XDG_VIDEOS_DIR" "Videos")
-                      "/screen-recordings")
-    :wofi     (string (os/getenv "VISUAL_SELECTION_TOOL" "wofi"))
-    :tessdata (string (os/getenv "TESSDATA_PREFIX"
-                                 "/usr/local/share/tessdata"))})
+(import json)
 
 # subprocess handling --------------------------------------------------------
+# NOTE: The application using `pipe` or `process-spawn` becomes the buffer
+# inbetween each process. While not ideal, if such were not done then pipe
+# would have to attach the output of a process to the input of another without
+# determining if a process ran successfully. The reason is that as a process
+# produces output, it will fill the pipe, up to the operating system's buffer
+# limit for pipes. At that point the process blocks until the pipe's buffer is
+# emptied. A process's output, when redirected into a pipe simply bust have
+# something that consumes it while it is being produced.
 (defn process-spawn [previous junction]
   (let [spawn-opts {:in (when previous :pipe) :out :pipe :err :pipe}
         ret @{}]
@@ -65,6 +63,16 @@
       :last (state :tail)
       _ ((state :tail) :out))))
 
+(comment
+
+  (pipe nil [["echo" "hello"] ["cat"]]) # -> "hello\n"
+  (pipe "hello" [["cat"]]) # -> "hello\n"
+  (pipe (pipe [["echo" "hello"]]) [["cat"]]) # -> "hello\n"
+  # TODO:
+  (pipe [(fn [] (pipe [["echo" "hello"]])) ["cat"]]) # -> "hello\n"
+
+  )
+
 # dependency checking --------------------------------------------------------
 # we need arity 2 or/and functions
 (defn and2 [a b]
@@ -89,22 +97,9 @@
                result)))
          (reduce2 and2))))
 
-# Begin program --------------------------------------------------------------
+# Utils ----------------------------------------------------------------------
 (defn wofi [msg]
   [(env :wofi) "-dImi" "-L9" "-w2" "-W600" "-H600" "-p" msg])
-
-# check for dependencies
-(when
-  (not
-    (check-programs-exist
-      "Dependency"
-      ;["grim" "slurp" "wf-recorder" "swaymsg" "pgrep" "pkill" (env :wofi)]))
-  (eprint "Some dependencies were missing.\n"
-       "Please install the required dependencies and try again.\n")
-  (os/exit 1))
-
-(put env :have-tesseract
-     (check-programs-exist "Optional dependency" "tesseract"))
 
 (defn select-choice [msg options]
   (try
@@ -228,8 +223,35 @@
     (array/concat wf-recorder "-f" destination)
     (pipe nil [wf-recorder])))
 
-# determine are we allowed to take or end recording
-(let [options     @{"Take Screenshot" :screenshot}
+# Begin program --------------------------------------------------------------
+# collect environment variables
+(defn main [& args]
+  (defglobal 'env
+    @{:path     (string/split ":" (os/getenv "PATH"))
+    :pictures (string (os/getenv "XDG_PICTURES_DIR" "Pictures")
+                      "/screenshots")
+    :videos   (string (os/getenv "XDG_VIDEOS_DIR" "Videos")
+                      "/screen-recordings")
+    :wofi     (string (os/getenv "VISUAL_SELECTION_TOOL" "wofi"))
+    :tessdata (string (os/getenv "TESSDATA_PREFIX"
+                                 "/usr/local/share/tessdata"))})
+
+  # check for dependencies
+  (when
+    (not
+      (check-programs-exist
+        "Dependency"
+        ;["grim" "slurp" "wf-recorder"
+          "swaymsg" "pgrep" "pkill" (env :wofi)]))
+    (eprint "Some dependencies were missing.\n"
+            "Please install the required dependencies and try again.\n")
+    (os/exit 1))
+
+  (put env :have-tesseract
+       (check-programs-exist "Optional dependency" "tesseract"))
+
+  # determine are we allowed to take or end recording
+  (let [options     @{"Take Screenshot" :screenshot}
       user-prompt @"Take Screenshot"]
   # with pgrep, errors are ok, we just want to determine if wf-recorder is
   # running and keep from showing options that aren't available during a
@@ -242,7 +264,8 @@
     ([_]
       (buffer/push user-prompt " or Start Recording")
       (put options "Start Recording" :start-recording)))
+
   (match (select-choice user-prompt options)
     :screenshot      (screenshot)
     :start-recording (recording)
-    :end-recording   (pipe nil [["pkill" "-2" "wf-recorder"]])))
+    :end-recording   (pipe nil [["pkill" "-2" "wf-recorder"]]))))
