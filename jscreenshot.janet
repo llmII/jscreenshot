@@ -22,6 +22,7 @@
     (dyn 'env)))
 
 # dependency checking --------------------------------------------------------
+# NOTE: move this section to jumble
 # we need arity 2 or/and functions
 (defn and2 [a b]
   (and a b))
@@ -51,8 +52,7 @@
 
 (defn select-choice [msg options]
   (try
-    (-> (pipe (string/join (keys options) "\n")
-              [(wofi (string msg))])
+    (-> (pipe (string/join (keys options) "\n") (wofi (string msg)))
         (string/trim "\n")
         options)
     ([err]
@@ -95,8 +95,8 @@
     (try
       [(string/trim
          (pipe
-           (filter-tree (pipe nil [["swaymsg" "-rt" "get_tree"]]))
-           [["slurp" (if ocr "-o" "-or")]]) "\n")
+           (filter-tree (pipe ["swaymsg" "-rt" "get_tree"]))
+           ["slurp" (if ocr "-o" "-or")]) "\n")
        (and ocr (env :have-tesseract))]
       ([err]
         (eprintf "Area selection failure.\n%s\n" err)
@@ -116,9 +116,8 @@
                              (match file-type
                                :screenshot "png"
                                :recording "mp4")))
-            [(wofi
-               (string/format "Select a file name for you %s:"
-                              (string file-type)))])
+            (wofi (string/format "Select a file name for you %s:"
+                                 (string file-type))))
           "\n")))
     ([err]
       (eprintf "File name selection failure.\n%s\n" err)
@@ -158,7 +157,7 @@
     (when rect (array/concat grim "-g" rect))
     (array/concat grim destination)
     (default post-processing [])
-    (pipe nil [grim ;post-processing])))
+    (pipe grim ;post-processing)))
 
 (defn recording []
   (let [wf-recorder @["wf-recorder"]
@@ -169,20 +168,20 @@
     (when audio (array/push wf-recorder "-a"))
     (when rect (array/concat wf-recorder "-g" rect))
     (array/concat wf-recorder "-f" destination)
-    (pipe nil [wf-recorder])))
+    (pipe wf-recorder)))
 
 # Begin program --------------------------------------------------------------
 # collect environment variables
 (defn main [& args]
   (setdyn 'env
-    @{:path     (string/split ":" (os/getenv "PATH"))
-    :pictures (string (os/getenv "XDG_PICTURES_DIR" "Pictures")
-                      "/screenshots")
-    :videos   (string (os/getenv "XDG_VIDEOS_DIR" "Videos")
-                      "/screen-recordings")
-    :wofi     (string (os/getenv "VISUAL_SELECTION_TOOL" "wofi"))
-    :tessdata (string (os/getenv "TESSDATA_PREFIX"
-                                 "/usr/local/share/tessdata"))})
+          @{:path     (string/split ":" (os/getenv "PATH"))
+            :pictures (string (os/getenv "XDG_PICTURES_DIR" "Pictures")
+                              "/screenshots")
+            :videos   (string (os/getenv "XDG_VIDEOS_DIR" "Videos")
+                              "/screen-recordings")
+            :wofi     (string (os/getenv "VISUAL_SELECTION_TOOL" "wofi"))
+            :tessdata (string (os/getenv "TESSDATA_PREFIX"
+                                         "/usr/local/share/tessdata"))})
 
   # check for dependencies
   (when
@@ -200,20 +199,20 @@
 
   # determine are we allowed to take or end recording
   (let [options     @{"Take Screenshot" :screenshot}
-      user-prompt @"Take Screenshot"]
-  # with pgrep, errors are ok, we just want to determine if wf-recorder is
-  # running and keep from showing options that aren't available during a
-  # recording.
-  (try
-    (do
-      (pipe nil [["pgrep" "wf-recorder"]])
-      (buffer/push user-prompt " or End Recording")
-      (put options "End recording" :end-recording))
-    ([_]
-      (buffer/push user-prompt " or Start Recording")
-      (put options "Start Recording" :start-recording)))
+        user-prompt @"Take Screenshot"]
+    # with pgrep, errors are ok, we just want to determine if wf-recorder is
+    # running and keep from showing options that aren't available during a
+    # recording.
+    (try
+      (do
+        (pipe ["pgrep" "wf-recorder"])
+        (buffer/push user-prompt " or End Recording")
+        (put options "End recording" :end-recording))
+      ([_]
+        (buffer/push user-prompt " or Start Recording")
+        (put options "Start Recording" :start-recording)))
 
-  (match (select-choice user-prompt options)
-    :screenshot      (screenshot)
-    :start-recording (recording)
-    :end-recording   (pipe nil [["pkill" "-2" "wf-recorder"]]))))
+    (match (select-choice user-prompt options)
+      :screenshot      (screenshot)
+      :start-recording (recording)
+      :end-recording   (pipe ["pkill" "-2" "wf-recorder"]))))
