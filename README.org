@@ -1,0 +1,42 @@
+* jscreenshot - A utility for screenshotting and screen recording
+In an effort to avoid dealing with shell escaping, enable more complex
+pipelines and user prompts, and to be able to generate an executable,
+jscreenshot was born.
+
+* Installation:
+One can install this with ~jpm install https://github.com/llmII/jscreenshot~
+
+* Usage:
+Once one has installed this, there will be a binary named ~screenshot~ in
+whichever directory they have ~jpm~ configured to install binaries. From there
+usage is pretty much self representative, as when one launches the application
+it will guide them through a series of steps to take a screenshot, take a
+recording, or end a recording.
+
+* Dependencies
+** Build
+- jumble
+- spawn-utils
+- jsys
+** Run
+- grim
+- slurp
+- wf-recorder
+- swaymsg
+- pgrep
+- pkill
+
+* Future
+This works great as is, but only if one runs wayland, and sway. We are not
+averse to the extension of this to support x11, or other window
+managers/compositors. It definitely would be nice for this to support more
+selection tools (like rofi) or drop some dependencies on external
+applications. This should also be improved to create the underlying
+directories in which it will store images/videos. It'd be nice for this to
+separate dependencies into a "recording" and "screenshotting" subsets and be
+capable of running with reduced functionality in the event we are missing a
+set of dependencies as well.
+
+* Credits
+bakpakin - janet
+sogaiu - discussion, code improvements
